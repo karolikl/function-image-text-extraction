@@ -7,24 +7,17 @@
 // Use for local testing:
 //   https://{ID}.ngrok.io/runtime/webhooks/EventGrid?functionName=Thumbnail
 
+using Azure.Messaging.EventGrid;
+using Azure.Messaging.EventGrid.SystemEvents;
 using Azure.Storage.Blobs;
 using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
 using Microsoft.Azure.CognitiveServices.Vision.ComputerVision.Models;
-using Microsoft.Azure.EventGrid.Models;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.EventGrid;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Formats.Gif;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 using System;
 using System.IO;
-using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -45,37 +38,6 @@ namespace ImageFunctions
             return blobClient.Name;
         }
 
-        private static IImageEncoder GetEncoder(string extension)
-        {
-            IImageEncoder encoder = null;
-
-            extension = extension.Replace(".", "");
-
-            var isSupported = Regex.IsMatch(extension, "gif|png|jpe?g", RegexOptions.IgnoreCase);
-
-            if (isSupported)
-            {
-                switch (extension.ToLower())
-                {
-                    case "png":
-                        encoder = new PngEncoder();
-                        break;
-                    case "jpg":
-                        encoder = new JpegEncoder();
-                        break;
-                    case "jpeg":
-                        encoder = new JpegEncoder();
-                        break;
-                    case "gif":
-                        encoder = new GifEncoder();
-                        break;
-                    default:
-                        break;
-                }
-            }
-
-            return encoder;
-        }
         private static async Task ExtractTextFromImage(string bloblUrl,
             ILogger log)
         {
@@ -144,13 +106,13 @@ namespace ImageFunctions
             {
                 if (input != null)
                 {
-                    var createdEvent = ((JObject)eventGridEvent.Data).ToObject<StorageBlobCreatedEventData>();
+                    var dataAsJObject = JObject.Parse(eventGridEvent.Data.ToString());
+                    var createdEvent = dataAsJObject.ToObject<StorageBlobCreatedEventData>();
+
                     var imageUrl = createdEvent.Url;
                     var extension = Path.GetExtension(createdEvent.Url);
-                    var encoder = GetEncoder(extension);
 
-                    if (encoder != null)
-                    {
+                  
                         var thumbContainerName = Environment.GetEnvironmentVariable("EXTRACTEDTEXT_CONTAINER_NAME");
                         var blobServiceClient = new BlobServiceClient(BLOB_STORAGE_CONNECTION_STRING);
                         var blobContainerClient = blobServiceClient.GetBlobContainerClient(thumbContainerName);
@@ -202,11 +164,6 @@ namespace ImageFunctions
                             output.Position = 0;
                             await blobContainerClient.UploadBlobAsync(blobName, output);
                         }
-                    }
-                    else
-                    {
-                        log.LogInformation($"No encoder support for: {createdEvent.Url}");
-                    }
                 }
             }
             catch (Exception ex)
