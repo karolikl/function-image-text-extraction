@@ -19,7 +19,6 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -98,7 +97,7 @@ namespace ImageFunctions
 
         [FunctionName("TextExtractor")]
         public static async Task Run(
-            [EventGridTrigger]EventGridEvent eventGridEvent,
+            [EventGridTrigger] EventGridEvent eventGridEvent,
             [Blob("{data.url}", FileAccess.Read)] Stream input,
             ILogger log)
         {
@@ -112,58 +111,58 @@ namespace ImageFunctions
                     var imageUrl = createdEvent.Url;
                     var extension = Path.GetExtension(createdEvent.Url);
 
-                  
-                        var thumbContainerName = Environment.GetEnvironmentVariable("EXTRACTEDTEXT_CONTAINER_NAME");
-                        var blobServiceClient = new BlobServiceClient(BLOB_STORAGE_CONNECTION_STRING);
-                        var blobContainerClient = blobServiceClient.GetBlobContainerClient(thumbContainerName);
-                        var blobName = GetBlobNameFromUrl(createdEvent.Url);
 
-                     
-                            ComputerVisionClient client = AuthenticateVision(VISION_ENDPOINT, VISION_KEY);
-                            if (client == null)
-                                log.LogError("Could not initialize ComputerVisionClient, authentication failed");
+                    var thumbContainerName = Environment.GetEnvironmentVariable("EXTRACTEDTEXT_CONTAINER_NAME");
+                    var blobServiceClient = new BlobServiceClient(BLOB_STORAGE_CONNECTION_STRING);
+                    var blobContainerClient = blobServiceClient.GetBlobContainerClient(thumbContainerName);
+                    var blobName = GetBlobNameFromUrl(createdEvent.Url);
 
-                            // Read text from URL
-                            var textHeaders = await client.ReadAsync(imageUrl);
-                            // After the request, get the operation location (operation ID)
-                            string operationLocation = textHeaders.OperationLocation;
-                            Thread.Sleep(2000);
 
-                            // Retrieve the URI where the extracted text will be stored from the Operation-Location header.
-                            // We only need the ID and not the full URL
-                            const int numberOfCharsInOperationId = 36;
-                            string operationId = operationLocation.Substring(operationLocation.Length - numberOfCharsInOperationId);
+                    ComputerVisionClient client = AuthenticateVision(VISION_ENDPOINT, VISION_KEY);
+                    if (client == null)
+                        log.LogError("Could not initialize ComputerVisionClient, authentication failed");
 
-                            // Extract the text
-                            ReadOperationResult results;
-                            log.LogInformation($"Extracting text from URL file {Path.GetFileName(imageUrl)}...");
+                    // Read text from URL
+                    var textHeaders = await client.ReadAsync(imageUrl);
+                    // After the request, get the operation location (operation ID)
+                    string operationLocation = textHeaders.OperationLocation;
+                    Thread.Sleep(2000);
 
-                            do
-                            {
-                                results = await client.GetReadResultAsync(Guid.Parse(operationId));
-                            }
-                            while ((results.Status == OperationStatusCodes.Running ||
-                                results.Status == OperationStatusCodes.NotStarted));
+                    // Retrieve the URI where the extracted text will be stored from the Operation-Location header.
+                    // We only need the ID and not the full URL
+                    const int numberOfCharsInOperationId = 36;
+                    string operationId = operationLocation.Substring(operationLocation.Length - numberOfCharsInOperationId);
 
-                            // Display the found text.
-                            var textUrlFileResults = results.AnalyzeResult.ReadResults;
-                            var stringBuilder = new StringBuilder("");
-                            foreach (ReadResult page in textUrlFileResults)
-                            {
-                                foreach (Line line in page.Lines)
-                                {
-                                    stringBuilder.AppendLine(line.Text);
-                                    log.LogInformation(line.Text);
-                                }
-                            }
+                    // Extract the text
+                    ReadOperationResult results;
+                    log.LogInformation($"Extracting text from URL file {Path.GetFileName(imageUrl)}...");
 
-                        using (var output = new MemoryStream())
+                    do
+                    {
+                        results = await client.GetReadResultAsync(Guid.Parse(operationId));
+                    }
+                    while ((results.Status == OperationStatusCodes.Running ||
+                        results.Status == OperationStatusCodes.NotStarted));
+
+                    // Display the found text.
+                    var textUrlFileResults = results.AnalyzeResult.ReadResults;
+                    var stringBuilder = new StringBuilder("");
+                    foreach (ReadResult page in textUrlFileResults)
+                    {
+                        foreach (Line line in page.Lines)
                         {
-                            byte[] bytes = Encoding.UTF8.GetBytes(stringBuilder.ToString());
-                            output.Write(bytes, 0, bytes.Length);
-                            output.Position = 0;
-                            await blobContainerClient.UploadBlobAsync(blobName, output);
+                            stringBuilder.AppendLine(line.Text);
+                            log.LogInformation(line.Text);
                         }
+                    }
+
+                    using (var output = new MemoryStream())
+                    {
+                        byte[] bytes = Encoding.UTF8.GetBytes(stringBuilder.ToString());
+                        output.Write(bytes, 0, bytes.Length);
+                        output.Position = 0;
+                        await blobContainerClient.UploadBlobAsync(blobName, output);
+                    }
                 }
             }
             catch (Exception ex)
