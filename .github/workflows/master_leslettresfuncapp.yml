@@ -33,7 +33,7 @@ jobs:
           popd
 
       - name: 'Run Azure Functions Action'
-        uses: Azure/functions-action@v2
+        uses: Azure/functions-action@v2.2.0
         id: fa
         with:
           app-name: 'leslettresfuncapp'
