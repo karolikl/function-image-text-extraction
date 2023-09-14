@@ -29,6 +29,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Net.Http.Json;
 using System.Collections.Generic;
+using System.Net.Http.Headers;
 
 namespace ImageFunctions
 {
@@ -136,32 +137,48 @@ namespace ImageFunctions
                 }
 
                 // CALL LLM
-                // Prepare the data to be sent to the API
-                var requestData = new
-                {
-                    prompt = $"In the french text below, fix all spelling mistakes and fill in any missing words. Output the results in french and english. Text: {stringBuilder.ToString()}",
-                    max_tokens = 200 // Adjust as needed
-                };
 
-                using (var client = new HttpClient())
+                using (HttpClient httpClient = new HttpClient())
                 {
-                    // Set the headers with your API key
-                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {OPENAI_KEY}");
+                    // Set the authorization header
+                    httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", OPENAI_KEY);
 
+                    var requestData = new
+                    {
+                        model = "gpt-3.5-turbo", // The chat model
+                        messages = new[] {
+                        new
+                        {
+                            role = "system",
+                            content = "You are a helpful assistant."
+                        },
+                        new
+                        {
+                            role = "user",
+                            content = $"In the french text below, fix all spelling mistakes and fill in any missing words. Output the results in french and english. Text: {stringBuilder.ToString()}"
+                        }
+                    }
+                    };
+
+                    // Serialize the request data to JSON
+                    string requestDataJson = JsonConvert.SerializeObject(requestData);
+
+                    // Create the HTTP request content
+                    var content = new StringContent(requestDataJson, Encoding.UTF8, "application/json");
+
+                    // Send the POST request to the OpenAI API
                     log.LogInformation($"Calling OpenAI.");
-                    // Make the API call to OpenAI
-                    var response = await client.PostAsJsonAsync(OPENAI_ENDPOINT, requestData);
+                    var response = await httpClient.PostAsync(OPENAI_ENDPOINT, content);
 
                     if (response.IsSuccessStatusCode)
                     {
                         log.LogInformation($"OpenAI response successful");
-                        var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse>();
-                        var openAIoutput = apiResponse.choices[0].text;
-
+                        string responseJson = await response.Content.ReadAsStringAsync();
+                        log.LogInformation($"OpenAI response: {responseJson}");
                         var finalBlobContainerClient = blobServiceClient.GetBlobContainerClient(TRANSLATEDTEXT_CONTAINER_NAME);
                         using (var output = new MemoryStream())
                         {
-                            byte[] bytes = Encoding.UTF8.GetBytes(openAIoutput);
+                            byte[] bytes = Encoding.UTF8.GetBytes(responseJson);
                             output.Write(bytes, 0, bytes.Length);
                             output.Position = 0;
                             var translatedBlobName = string.Concat(blobName, "_tranlation.json");
@@ -173,7 +190,7 @@ namespace ImageFunctions
                         log.LogError($"Failed to process the text. Status Code: {response.StatusCode}");
                     }
                 }
-            }
+                }
             catch (Exception ex)
             {
                 log.LogError(ex.Message);
