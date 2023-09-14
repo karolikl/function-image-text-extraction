@@ -56,6 +56,8 @@ namespace ImageFunctions
         {
             try
             {
+                log.LogInformation($"Received eventGridData: {eventGridEvent.Data}");
+
                 // Deserialize the Event Grid event data
                 var eventData = JsonConvert.DeserializeObject<StorageBlobCreatedEventData>(eventGridEvent.Data.ToString());
 
