@@ -68,14 +68,6 @@ namespace ImageFunctions
 
                 dynamic jsonObject = JsonConvert.DeserializeObject(eventGridEvent.Data.ToString());
                 string imageUrl = jsonObject.url;
-
-                // Deserialize the Event Grid event data
-                var eventData = JsonConvert.DeserializeObject<StorageBlobCreatedEventData>(eventGridEvent.Data.ToString());
-                if (eventData == null)
-                    log.LogError("Could not deserialize eventGridEvent to StorageBlobCreatedEventData");
-
-                log.LogInformation($"createdEvent api: {eventData.Api}, blob type: {eventData.BlobType}, clientRequestId: {eventData.ClientRequestId}");
-                //string imageUrl = eventData.Url;
                 log.LogInformation($"Received Blob: {imageUrl}");
 
                 var blobName = GetBlobNameFromUrl(imageUrl, log);
@@ -84,19 +76,24 @@ namespace ImageFunctions
                 ComputerVisionClient visionClient = AuthenticateVision(VISION_ENDPOINT, VISION_KEY);
                 if (visionClient == null)
                     log.LogError("Could not initialize ComputerVisionClient, authentication failed");
+                else
+                    log.LogInformation($"ComputerVisionClient initialized");
 
                 var textHeaders = await visionClient.ReadAsync(imageUrl);  // Read text from URL
-                string operationLocation = textHeaders.OperationLocation; // After the request, get the operation location (operation ID)
+                log.LogInformation($"Sleeping for 2 seconds");
                 Thread.Sleep(2000);
+                string operationLocation = textHeaders.OperationLocation; // After the request, get the operation location (operation ID)
+                log.LogInformation($"OperationLocation: {operationLocation}");
 
                 // Retrieve the URI where the extracted text will be stored from the Operation-Location header.
                 // We only need the ID and not the full URL
                 const int numberOfCharsInOperationId = 36;
                 string operationId = operationLocation.Substring(operationLocation.Length - numberOfCharsInOperationId);
+                log.LogInformation($"OperationId: {operationId}");
 
                 // Extract the text
                 ReadOperationResult results;
-                log.LogInformation($"Extracting text from URL file {blobName}...");
+                log.LogInformation($"Beginning extraction of text from file {blobName}...");
 
                 do
                 {
