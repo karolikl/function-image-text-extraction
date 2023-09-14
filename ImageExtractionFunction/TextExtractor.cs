@@ -21,6 +21,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -44,7 +45,8 @@ namespace ImageFunctions
 
             var uri = new Uri(bloblUrl);
             var blobClient = new BlobClient(uri);
-            return blobClient.Name;
+            string filenameWithoutExtension = Path.GetFileNameWithoutExtension(blobClient.Name);
+            return filenameWithoutExtension;
         }
         public static ComputerVisionClient AuthenticateVision(string endpoint, string key)
         {
