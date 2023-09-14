@@ -169,6 +169,8 @@ namespace ImageFunctions
                     // Send the POST request to the OpenAI API
                     log.LogInformation($"Calling OpenAI.");
                     var response = await httpClient.PostAsync(OPENAI_ENDPOINT, content);
+                    log.LogInformation($"Sleeping for 10 seconds");
+                    Thread.Sleep(10000);
 
                     if (response.IsSuccessStatusCode)
                     {
