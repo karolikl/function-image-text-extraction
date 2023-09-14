@@ -36,7 +36,8 @@ namespace ImageFunctions
 
         private static string GetBlobNameFromUrl(string bloblUrl, ILogger log)
         {
-            if (string.IsNullOrEmpty(bloblUrl)) { 
+            if (string.IsNullOrEmpty(bloblUrl))
+            {
                 log.LogError("Parameter bloblUrl in GetBlobNameFromUrl cannot be empty");
                 return null;
             }
@@ -63,13 +64,10 @@ namespace ImageFunctions
             {
                 log.LogInformation($"Received eventGridData: {eventGridEvent.Data}");
 
-                using (StreamReader reader = new StreamReader(blobStream))
-                {
-                    string blobContent = reader.ReadToEnd();
-                    log.LogInformation($"Blob Content: {blobContent}");
-                }
-
                 var createdEvent = JsonConvert.DeserializeObject<StorageBlobCreatedEventData>(eventGridEvent.Data.ToString());
+
+                dynamic jsonObject = JsonConvert.DeserializeObject(eventGridEvent.Data.ToString());
+                string imageUrl = jsonObject.url;
 
                 // Deserialize the Event Grid event data
                 var eventData = JsonConvert.DeserializeObject<StorageBlobCreatedEventData>(eventGridEvent.Data.ToString());
@@ -77,7 +75,7 @@ namespace ImageFunctions
                     log.LogError("Could not deserialize eventGridEvent to StorageBlobCreatedEventData");
 
                 log.LogInformation($"createdEvent api: {eventData.Api}, blob type: {eventData.BlobType}, clientRequestId: {eventData.ClientRequestId}");
-                string imageUrl = eventData.Url;
+                //string imageUrl = eventData.Url;
                 log.LogInformation($"Received Blob: {imageUrl}");
 
                 var blobName = GetBlobNameFromUrl(imageUrl, log);
