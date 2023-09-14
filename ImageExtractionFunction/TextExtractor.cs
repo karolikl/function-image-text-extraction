@@ -81,7 +81,7 @@ namespace ImageFunctions
                 else
                     log.LogInformation($"ComputerVisionClient initialized");
 
-                var textHeaders = await visionClient.ReadAsync(imageUrl);  // Read text from URL
+                var textHeaders = await visionClient.ReadAsync(imageUrl, "fr");  // Read text from URL
                 log.LogInformation($"Sleeping for 2 seconds");
                 Thread.Sleep(2000);
                 string operationLocation = textHeaders.OperationLocation; // After the request, get the operation location (operation ID)
@@ -124,7 +124,8 @@ namespace ImageFunctions
                     byte[] bytes = Encoding.UTF8.GetBytes(stringBuilder.ToString());
                     output.Write(bytes, 0, bytes.Length);
                     output.Position = 0;
-                    await blobContainerClient.UploadBlobAsync(blobName, output);
+                    var extractedBlobName = string.Concat(blobName, ".json");
+                    await blobContainerClient.UploadBlobAsync(extractedBlobName, output);
                 }
             }
             catch (Exception ex)
