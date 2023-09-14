@@ -34,8 +34,13 @@ namespace ImageFunctions
         private static readonly string VISION_ENDPOINT = Environment.GetEnvironmentVariable("VISION_ENDPOINT");
         private static readonly string EXTRACTED_TEXT_CONTAINER_NAME = Environment.GetEnvironmentVariable("EXTRACTEDTEXT_CONTAINER_NAME");
 
-        private static string GetBlobNameFromUrl(string bloblUrl)
+        private static string GetBlobNameFromUrl(string bloblUrl, ILogger log)
         {
+            if (string.IsNullOrEmpty(bloblUrl)) { 
+                log.LogError("Parameter bloblUrl in GetBlobNameFromUrl cannot be empty");
+                return null;
+            }
+
             var uri = new Uri(bloblUrl);
             var blobClient = new BlobClient(uri);
             return blobClient.Name;
@@ -58,20 +63,16 @@ namespace ImageFunctions
             {
                 log.LogInformation($"Received eventGridData: {eventGridEvent.Data}");
 
-                var createdEvent = ((JObject)eventGridEvent.Data.ToString()).ToObject<StorageBlobCreatedEventData>();
-                if (createdEvent == null)
-                    log.LogError("Could not deserialize eventGridEvent to StorageBlobCreatedEventData");
-                log.LogInformation($"createdEvent url: {createdEvent.Url}, blob type: {createdEvent.BlobType}");
-
                 // Deserialize the Event Grid event data
                 var eventData = JsonConvert.DeserializeObject<StorageBlobCreatedEventData>(eventGridEvent.Data.ToString());
                 if (eventData == null)
                     log.LogError("Could not deserialize eventGridEvent to StorageBlobCreatedEventData");
 
-                var imageUrl = eventData.Url;
+                log.LogInformation($"createdEvent api: {eventData.Api}, blob type: {eventData.BlobType}, clientRequestId: {eventData.ClientRequestId}");
+                string imageUrl = eventData.Url;
                 log.LogInformation($"Received Blob: {imageUrl}");
 
-                var blobName = GetBlobNameFromUrl(imageUrl);
+                var blobName = GetBlobNameFromUrl(imageUrl, log);
                 log.LogInformation($"Extracted blob name from url: {blobName}");
 
                 ComputerVisionClient visionClient = AuthenticateVision(VISION_ENDPOINT, VISION_KEY);
