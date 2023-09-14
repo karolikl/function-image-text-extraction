@@ -63,6 +63,14 @@ namespace ImageFunctions
             {
                 log.LogInformation($"Received eventGridData: {eventGridEvent.Data}");
 
+                using (StreamReader reader = new StreamReader(blobStream))
+                {
+                    string blobContent = reader.ReadToEnd();
+                    log.LogInformation($"Blob Content: {blobContent}");
+                }
+
+                var createdEvent = JsonConvert.DeserializeObject<StorageBlobCreatedEventData>(eventGridEvent.Data.ToString());
+
                 // Deserialize the Event Grid event data
                 var eventData = JsonConvert.DeserializeObject<StorageBlobCreatedEventData>(eventGridEvent.Data.ToString());
                 if (eventData == null)
